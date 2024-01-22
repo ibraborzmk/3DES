@@ -1,0 +1,107 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class DESTest {
+    private DES des;
+
+    @BeforeEach
+    public void setUp() {
+        des = new DES();
+    }
+
+
+    @Test
+    public void testStringToBits() {
+        String messageClair = "Hello";
+        int[] bits = des.stringToBits(messageClair);
+        
+        int[] expectedBits = {
+    		0, 1, 0, 0, 1, 0, 0, 0,
+            0, 1, 1, 0, 0, 1, 0, 1,
+            0, 1, 1, 0, 1, 1, 0, 0,
+            0, 1, 1, 0, 1, 1, 0, 0,
+            0, 1, 1, 0, 1, 1, 1, 1,
+        };
+       
+        assertArrayEquals(expectedBits, bits);
+    }
+
+    @Test
+    public void testBitsToString() {
+        int[] bits = {
+            0, 1, 0, 0, 1, 0, 0, 0,
+            0, 1, 1, 0, 0, 1, 0, 1,
+            0, 1, 1, 0, 1, 1, 0, 0,
+            0, 1, 1, 0, 1, 1, 0, 0,
+            0, 1, 1, 0, 1, 1, 1, 1,
+        };
+        String expectedMessage = "Hello";
+
+        String message = des.bitsToString(bits);
+
+        assertEquals(expectedMessage, message);
+    }
+    @Test
+    public void testCrypte() {
+        String message_clair = "le mot de passe est AZERTy123456789";
+        int[] messageCode = des.crypte(message_clair);
+
+        // Effectuer des vérifications appropriées pour le tableau d'entiers résultant du cryptage.
+        // ...
+
+        // Exemple de vérification de tableau d'entiers
+        int[] expectedBits = {
+            1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0
+        };
+        assertArrayEquals(expectedBits, messageCode);
+    }
+
+    @Test
+    public void testDecrypte() {
+        int[] messageCode = {
+                1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0
+        };
+        String messageDecrypte = des.decrypte(messageCode);
+        System.out.print(messageDecrypte);
+        // Vérifier si le message décrypté est identique au message d'origine
+        assertEquals("le mot de passe est AZERTy123456789", messageDecrypte);
+      
+    }
+ 
+
+    @Test
+    public void testPermutation() {
+        int[] bloc = {
+            1, 2, 3, 4, 5, 6, 7, 8
+        };
+        int[] tab_permutation = {
+            2, 4, 1, 3, 8, 6, 5, 7
+        };
+        int[] resultatPermutation = des.permutation(tab_permutation, bloc);
+        int[] expectedPermutation = {
+            2, 4, 1, 3, 8, 6, 5, 7
+        };
+
+        assertArrayEquals(expectedPermutation, resultatPermutation);
+    }
+
+    @Test
+    public void testDecoupage() {
+        int[] bloc = {
+            1, 2, 3, 4, 5, 6, 7, 8
+        };
+        int tailleBlocs = 4;
+        int[][] blocsDecoupes = des.decoupage(bloc, tailleBlocs);
+        int[][] expectedBlocs = {
+            {1, 2, 3, 4},
+            {5, 6, 7, 8}
+        };
+
+        assertArrayEquals(expectedBlocs, blocsDecoupes);
+    }
+
+    // Ajoutez d'autres tests pour les autres fonctionnalités de votre classe DES
+
+}
+

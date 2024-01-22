@@ -1,0 +1,129 @@
+package Crypto.src;
+
+import Crypto.src.TripleDES;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+public class Interface3 {
+
+    private TripleDES tripleDES = new TripleDES();
+
+    public Interface3() {
+        JFrame frame = new JFrame("Chiffrement / Déchiffrement 3DES");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 400);
+        frame.setLayout(new GridLayout(1, 2));
+
+        JPanel panelCryptage = new JPanel(new BorderLayout());
+        panelCryptage.setBackground(new Color(230, 230, 250));
+        JPanel panelDecryptage = new JPanel(new BorderLayout());
+        panelDecryptage.setBackground(new Color(240, 248, 255));
+
+        JTextArea zoneTexteCryptage = new JTextArea();
+        zoneTexteCryptage.setLineWrap(true);
+        zoneTexteCryptage.setWrapStyleWord(true);
+        panelCryptage.add(new JScrollPane(zoneTexteCryptage), BorderLayout.CENTER);
+
+        JTextArea zoneTexteDecryptage = new JTextArea();
+        zoneTexteDecryptage.setLineWrap(true);
+        zoneTexteDecryptage.setWrapStyleWord(true);
+        panelDecryptage.add(new JScrollPane(zoneTexteDecryptage), BorderLayout.CENTER);
+
+        JPanel panelBoutonCryptage = new JPanel(new FlowLayout());
+        JPanel panelBoutonDecryptage = new JPanel(new FlowLayout());
+
+        JButton boutonCryptage = new JButton("Chiffrer");
+        boutonCryptage.setBackground(new Color(135, 206, 250));
+        boutonCryptage.setForeground(Color.BLACK);
+        boutonCryptage.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String message = zoneTexteCryptage.getText();
+                try {
+                    int[] chiffre = effectuerChiffrement(message);
+                    zoneTexteDecryptage.setText(tableauEnChaine(chiffre));
+                } catch (Exception ex) {
+                    afficherErreur("Erreur de chiffrement", ex.getMessage());
+                }
+            }
+        });
+
+        panelBoutonCryptage.add(boutonCryptage);
+
+        JButton boutonDecryptage = new JButton("Déchiffrer");
+        boutonDecryptage.setBackground(new Color(100, 149, 237));
+        boutonDecryptage.setForeground(Color.BLACK);
+        boutonDecryptage.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String texteChiffre = zoneTexteDecryptage.getText();
+                try {
+                    int[] chiffre = chaineEnTableau(texteChiffre);
+                    String decrypte = effectuerDechiffrement(chiffre);
+                    zoneTexteCryptage.setText(decrypte);
+                } catch (Exception ex) {
+                    afficherErreur("Erreur de déchiffrement", ex.getMessage());
+                }
+            }
+        });
+        panelBoutonDecryptage.add(boutonDecryptage);
+
+        panelCryptage.add(panelBoutonCryptage, BorderLayout.SOUTH);
+        panelDecryptage.add(panelBoutonDecryptage, BorderLayout.SOUTH);
+
+        frame.add(panelCryptage);
+        frame.add(panelDecryptage);
+        frame.setVisible(true);
+    }
+
+    private int[] effectuerChiffrement(String message) throws Exception {
+        if (message.isEmpty()) {
+            throw new Exception("Le message vide ne peut pas être chiffré.");
+        }
+        return TripleDES.chiffrement(message);
+    }
+
+    private String effectuerDechiffrement(int[] chiffre) throws Exception {
+        if (chiffre.length == 0) {
+            throw new Exception("Aucun message chiffré à déchiffrer.");
+        }
+        return TripleDES.dechiffrement(chiffre);
+    }
+
+    private String tableauEnChaine(int[] tableau) {
+        StringBuilder sb = new StringBuilder();
+        for (int valeur : tableau) {
+            sb.append(valeur);
+        }
+        return sb.toString();
+    }
+
+    private int[] chaineEnTableau(String str) {
+        int[] tableau = new int[str.length()];
+        for (int i = 0; i < str.length(); i++) {
+            tableau[i] = Character.getNumericValue(str.charAt(i));
+        }
+        return tableau;
+    }
+
+    private void afficherErreur(String titre, String message) {
+        JOptionPane.showMessageDialog(null, message, titre, JOptionPane.ERROR_MESSAGE);
+    }
+
+    public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                new Interface3();
+            }
+        });
+    }
+}

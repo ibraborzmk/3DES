@@ -1,0 +1,529 @@
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.Random;
+
+public class DES {
+    // Constants
+    private static final int BLOCK_SIZE = 64;
+    private static final int SUB_BLOCK_SIZE = 32;
+    static final int ROUND_COUNT = 16;
+
+    private static final int[] SHIFT_TABLE = {
+            1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1
+    };
+    
+    private static final int[] PC1 = {
+            57, 49, 41, 33, 25, 17, 9,
+            1, 58, 50, 42, 34, 26, 18,
+            10, 2, 59, 51, 43, 35, 27,
+            19, 11, 3, 60, 52, 44, 36,
+            63, 55, 47, 39, 31, 23, 15,
+            7, 62, 54, 46, 38, 30, 22,
+            14, 6, 61, 53, 45, 37, 29,
+            21, 13, 5, 28, 20, 12, 4
+    };
+
+    private static final int[] PC2 = {
+            14, 17, 11, 24, 1, 5,
+            3, 28, 15, 6, 21, 10,
+            23, 19, 12, 4, 26, 8,
+            16, 7, 27, 20, 13, 2,
+            41, 52, 31, 37, 47, 55,
+            30, 40, 51, 45, 33, 48,
+            44, 49, 39, 56, 34, 53,
+            46, 42, 50, 36, 29, 32
+    };
+
+    public static final int[] INITIAL_PERMUTATION = {
+            58, 50, 42, 34, 26, 18, 10, 2,
+            60, 52, 44, 36, 28, 20, 12, 4,
+            62, 54, 46, 38, 30, 22, 14, 6,
+            64, 56, 48, 40, 32, 24, 16, 8,
+            57, 49, 41, 33, 25, 17, 9, 1,
+            59, 51, 43, 35, 27, 19, 11, 3,
+            61, 53, 45, 37, 29, 21, 13, 5,
+            63, 55, 47, 39, 31, 23, 15, 7
+    };
+
+    private static final int[][][] S_BOXES = {
+            {
+                    // S-Box 1
+                    {14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7},
+                    {0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8},
+                    {4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0},
+                    {15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13}
+            },
+            // ... (similar S-Boxes 2 to 8)
+    };
+
+    private static final int[] EXPANSION_TABLE = {
+            32, 1, 2, 3, 4, 5,
+            4, 5, 6, 7, 8, 9,
+            8, 9, 10, 11, 12, 13,
+            12, 13, 14, 15, 16, 17,
+            16, 17, 18, 19, 20, 21,
+            20, 21, 22, 23, 24, 25,
+            24, 25, 26, 27, 28, 29,
+            28, 29, 30, 31, 32, 1
+    };
+    
+    // Attributes
+    public static Random random = new Random();
+    private static int[] masterKey = new int[64];
+    int[][] keyTable = new int[ROUND_COUNT][];
+
+    // Constructor
+    public DES() {
+        // Initialize the masterKey
+        masterKey = generateMasterKey();
+
+        // Initialize the key table
+        for (int i = 0; i < ROUND_COUNT; i++) {
+            keyTable[i] = new int[48];
+        }
+    }
+
+    public int[] encrypt(String message) {
+        // Convert the message to a bit array
+        int[] messageBits = stringToBits(message);
+
+        // Divide the message into 64-bit blocks
+        int[][] blocks = divide(messageBits, BLOCK_SIZE);
+
+        // Initialize the array for encrypted blocks
+        for (int i = 0; i < blocks.length; i++) {
+            // 1) Initial Permutation
+            blocks[i] = permute(INITIAL_PERMUTATION, blocks[i]);
+            
+            // 2) Split into two 32-bit sub-blocks
+            int[][] LR = divide(blocks[i], SUB_BLOCK_SIZE);
+            int[] L = LR[0];
+            int[] R = LR[1];
+            
+            // 3) Rounds n : (ROUND_COUNT rounds, using keys in order)
+            for (int j = 0; j < ROUND_COUNT; j++) {
+                // 3.1) Calculate key Kj
+                generateKey(j);
+                int[] R2 = R;
+                // 3.2) Calculate R = L xor F(R, Kj)
+                R = xor(L, function_F(R, j));
+                // Swap values of L and R
+                L = R2;
+            }
+
+            // 4) Combine into a 64-bit block
+            int[][] combined = { L, R };
+            int[] result = combineBlocks(combined);
+
+            // 5) Inverse Permutation
+            blocks[i] = invPermute(INITIAL_PERMUTATION, result);
+        }
+
+        // Combine into a single block for the final result
+        int[] finalResult = combineBlocks(blocks
+        		);
+        return finalResult;
+    }
+
+    public String decrypt(int[] encryptedMessage) {
+        // Divide the encrypted message into 64-bit blocks
+        int[][] divided = divide(encryptedMessage, BLOCK_SIZE);
+
+        // Initialize the array for decrypted blocks
+        for (int i = 0; i < divided.length; i++) {
+            // 1) Initial Permutation
+            divided[i] = permute(INITIAL_PERMUTATION, divided[i]);
+
+            // 2) Split into two 32-bit blocks: Ln and Rn
+            int[][] LR = divide(divided[i], SUB_BLOCK_SIZE);
+            int[] L = LR[0];
+            int[] R = LR[1];
+
+            // 3) Rounds j: (ROUND_COUNT rounds, using keys in reverse order)
+            for (int j = ROUND_COUNT - 1; j >= 0; j--) {
+                int[] L2 = L;
+                L = xor(R, function_F(L, j));
+                R = L2;
+            }
+
+            // 4) Combine into a 64-bit block
+            int[][] combined = { L, R };
+            int[] result = combineBlocks(combined);
+
+            // 5) Inverse Permutation
+            divided[i] = invPermute(INITIAL_PERMUTATION, result);
+        }
+
+        // Combine into a single block for the final result and convert to String
+        String finalResult = bitsToString(combineBlocks(divided));
+        return finalResult;
+    }
+
+    // Convert a string to an array of bits
+    public int[] stringToBits(String message) {
+        // Check if the string is empty or null
+        if (message == null || message.isEmpty()) {
+            throw new IllegalArgumentException("The string cannot be empty.");
+        }
+
+        // Calculate the size of the string in bits
+        int totalBits = message.length() * 8;
+        // Create an array of integers of the size of the string in bits
+        int[] bits = new int[totalBits];
+        // Initialize the bit index
+        int bitIndex = 0;
+
+        // Iterate through the string
+        for (int i = 0; i < message.length(); i++) {
+            // Get the character at index i
+            char c = message.charAt(i);
+            // Iterate through the 8 bits of the character
+            for (int j = 7; j >= 0; j--) {
+                // Get the j-th bit of the character
+                int bit = (c >> j) & 1;
+                // Add the bit to the array of integers
+                bits[bitIndex] = bit;
+                // Increment the bit index
+                bitIndex++;
+            }
+        }
+
+        return bits;
+    }
+
+    // Convert an array of bits to a string
+    public String bitsToString(int[] bits) {
+        // Check if the bits array is empty or null
+        if (bits == null || bits.length == 0) {
+            throw new IllegalArgumentException("The bits array cannot be empty or null.");
+        }
+
+        // Calculate the size of the array of integers in bits
+        int totalBits = bits.length;
+
+        // Check that the array contains a number of integers multiple of 8 to represent characters
+        if (totalBits % 8 != 0) {
+            throw new IllegalArgumentException("The bits array must have a length multiple of 8 to represent characters.");
+        }
+
+        // Initialize the number of characters
+        int totalChars = 0;
+
+        // Iterate through the array of integers in groups of 8 to count the number of characters
+        for (int i = 0; i < totalBits; i += 8) {
+            // Initialize a flag to check if all bits in the group are 0
+            boolean isAllZeros = true;
+            // Iterate through the 8 bits of the group
+            for (int j = 0; j < 8; j++) {
+                // If a bit is 1, set the flag to false and break out of the loop
+                if (bits[i + j] != 0) {
+                    // The bit is 1, set the flag to false
+                    isAllZeros = false;
+                    // Break out of the loop
+                    break;
+                }
+            }
+            // If all bits in the group are 0, do not count a character
+            if (!isAllZeros) {
+                // Count a character
+                totalChars++;
+            }
+        }
+
+        // Create an array of characters to store the converted characters
+        char[] chars = new char[totalChars];
+        // Initialize the character index
+        int charIndex = 0;
+
+        // Iterate through the array of integers in groups of 8 to convert them to characters
+        for (int i = 0; i < totalBits; i += 8) {
+            // Initialize a flag to check if all bits in the group are 0
+            boolean isAllZeros = true;
+            // Initialize the character value
+            int charValue = 0;
+            // Iterate through the 8 bits of the group
+            for (int j = 0; j < 8; j++) {
+                // If a bit is 1, set the flag to false
+                if (bits[i + j] != 0) {
+                    // The bit is 1, set the flag to false
+                    isAllZeros = false;
+                }
+                // Shift the character value left by 1 bit and add the bit
+                charValue = (charValue << 1) | bits[i + j];
+            }
+            // If all bits in the group are 0, do not convert the group to a character
+            if (!isAllZeros) {
+                // Convert the character value to a character and add it to the array of characters
+                chars[charIndex] = (char) charValue;
+                // Increment the character index
+                charIndex++;
+            }
+        }
+
+        // Return the string of characters
+        return new String(chars);
+    }
+
+
+
+
+    public int[] generateMasterKey() {
+        // Create an array of 64 integers
+        int[] key = new int[64];
+        // Generate 64 random bits
+        for (int i = 0; i < 64; i++) {
+            // Generate a random bit
+            int randomBit = random.nextInt(2);
+            // Add the bit to the array of integers
+            key[i] = randomBit;
+        }
+        return key;
+    }
+
+    public int[] permutation(int[] permutationTable, int[] block) {
+        // Ensure that the block size matches the permutation size
+        if (block.length != permutationTable.length) {
+            throw new IllegalArgumentException("Block size must match permutation size.");
+        }
+
+        // Create an array of integers with the block size
+        int[] permutedBlock = new int[block.length];
+
+        // Apply the permutation by rearranging the bits in the block
+        for (int i = 0; i < permutationTable.length; i++) {
+            // Add the bit to the array of integers
+            permutedBlock[i] = block[permutationTable[i] - 1]; // -1 because indices start at 1 in permutationTable
+        }
+        return permutedBlock;
+    }
+
+    public int[] invPermutation(int[] permutationTable, int[] block) {
+        // Ensure that the block size matches the permutation size
+        if (block.length != permutationTable.length) {
+            throw new IllegalArgumentException("Block size must match permutation size.");
+        }
+
+        // Create an array of integers with the block size
+        int[] inversePermutedBlock = new int[block.length];
+
+        // Apply the inverse permutation by rearranging the bits in the block
+        for (int i = 0; i < permutationTable.length; i++) {
+            // Add the bit to the array of integers
+            inversePermutedBlock[permutationTable[i] - 1] = block[i]; // -1 because indices start at 1 in permutationTable
+        }
+        return inversePermutedBlock;
+    }
+
+    public int[][] split(int[] block, int blockSize) {
+        // Calculate the number of sub-blocks
+        int numberOfBlocks = block.length / blockSize + (block.length % blockSize == 0 ? 0 : 1);
+
+        // Create an array of integers to store the sub-blocks
+        int[][] splitBlocks = new int[numberOfBlocks][blockSize];
+
+        // Split the block into sub-blocks of the specified size
+        for (int i = 0; i < numberOfBlocks; i++) {
+            // Calculate the effective length of the sub-block
+            int effectiveLength = Math.min(blockSize, block.length - i * blockSize);
+            // Iterate through the sub-block
+            for (int j = 0; j < blockSize; j++) {
+                // If the index is less than the effective length, add the bit to the sub-block
+                if (j < effectiveLength) {
+                    // Add the bit to the sub-block
+                    splitBlocks[i][j] = block[i * blockSize + j];
+                } else {
+                    // Fill with zeros if the length is less than blockSize
+                    splitBlocks[i][j] = 0;
+                }
+            }
+        }
+        return splitBlocks;
+    }
+
+    public int[] joinBlocks(int[][] blocks) {
+        // Calculate the number of blocks
+        int numberOfBlocks = blocks.length;
+        // Calculate the size of the blocks
+        int blockSize = blocks[0].length;
+
+        // Check that all blocks have the same size
+        for (int i = 1; i < numberOfBlocks; i++) {
+            if (blocks[i].length != blockSize) {
+                throw new IllegalArgumentException("All blocks must have the same size.");
+            }
+        }
+        // Create an array of integers to store the joined block
+        int[] joinedBlock = new int[numberOfBlocks * blockSize];
+
+        // Join all blocks into a single array
+        for (int i = 0; i < numberOfBlocks; i++) {
+            // Iterate through the block
+            for (int j = 0; j < blockSize; j++) {
+                // Add the bit to the joined block
+                joinedBlock[i * blockSize + j] = blocks[i][j];
+            }
+        }
+        return joinedBlock;
+    }
+
+    public int[] generateKey(int round) {
+        if (round < 0 || round > NUMBER_OF_ROUNDS) {
+            throw new IllegalArgumentException("Round must be between 1 and 16.");
+        }
+        // Create an array of integers to store the round key
+        int[] roundKey = new int[48];
+        // Create an array of integers to store the key
+        int[] keyPermuted = new int[56];
+        // Perform choice permutation PC1 to obtain the 56-bit key
+        for (int i = 0; i < 56; i++) {
+            // Add the bit to the array of integers
+            keyPermuted[i] = masterKey[PC1[i] - 1];
+        }
+
+        // Split the key into left and right parts
+        int[][] keyParts = split(keyPermuted, 28);
+
+        // Perform circular left shifts based on the round
+        for (int k = 0; k < round; k++) {
+            keyParts[0] = circularLeftShift(keyParts[0], shiftTable[round]);
+            keyParts[1] = circularLeftShift(keyParts[1], shiftTable[round]);
+        }
+
+        // Combine the left and right parts
+        int[] key = joinBlocks(keyParts);
+
+        // Perform choice permutation PC2 to obtain the round key
+        for (int i = 0; i < 48; i++) {
+            // Add the bit to the array of integers
+            roundKey[i] = key[PC2[i] - 1];
+        }
+
+        // Store the round key in keyArray
+        keyArray[round] = roundKey;
+
+        return roundKey;
+    }
+
+    int[] circularLeftShift(int[] block, int shiftAmount) {
+        // Create an array of integers to store the shifted block
+        int[] shiftedArray = new int[block.length];
+        // Iterate through the block
+        for (int i = 0; i < block.length; i++) {
+            // Calculate the new index
+            int newIndex = (i + shiftAmount) % block.length;
+            // Add the bit to the array of integers
+            shiftedArray[i] = block[newIndex];
+        }
+
+        return shiftedArray;
+    }
+
+    public static int[] xor(int[] array1, int[] array2) {
+        // Calculate the maximum length between the two arrays
+        int maxLength = Math.max(array1.length, array2.length);
+        // Create an array of integers to store the result
+        int[] xorResult = new int[maxLength];
+        // Iterate through both arrays
+        for (int i = 0; i < maxLength; i++) {
+            // Get the value of each array, or 0 if the index is greater than the length of the array
+            int value1 = i < array1.length ? array1[i] : 0;
+            int value2 = i < array2.length ? array2[i] : 0;
+            // Perform the XOR operation
+            xorResult[i] = value1 ^ value2;
+        }
+
+        return xorResult;
+    }
+
+    public static int[] substitutionFunction(int[] array
+    		) {
+        // Create an array of integers to store the result
+        int[] substitutionResult = new int[4];
+
+        // Determine the row and column for the 6-bit block
+        int row = (array[0] << 1) | array[5];
+        int column = (array[1] << 3) | (array[2] << 2) | (array[3] << 1) | array[4];
+
+        // Get the substitution value from the appropriate S-box
+        int sBoxValue = S[0][row][column]; // Using the first S-box, change if necessary
+
+        // Convert the substitution value to binary (4 bits)
+        for (int j = 3; j >= 0; j--) {
+            substitutionResult[j] = (sBoxValue >> j) & 1;
+        }
+
+        return substitutionResult;
+    }
+
+    public int[] functionF(int[] halfBlock, int round) {
+        // Permutation table P
+        int[] P = {16, 7, 20, 21, 29, 12, 28, 17,
+                1, 15, 23, 26, 5, 18, 31, 10,
+                2, 8, 24, 14, 32, 27, 3, 9,
+                19, 13, 30, 6, 22, 11, 4, 25};
+
+        // Choice permutation E to obtain Dn
+        int[] Dn_2 = new int[48];
+        for (int i = 0; i < 48; i++) {
+            Dn_2[i] = halfBlock[E[i] - 1];
+        }
+
+        // XOR Dn with the key Kn to obtain D∗n
+        int[] Detoile = xor(Dn_2, keyArray[round]); // Index 0 should be updated based on the current key
+
+        // Split D∗n into 8 blocks of 6 bits
+        int[][] blocks6bits = split(Detoile, 6);
+
+        // Apply substitution function S to each 6-bit block
+        int[] substitutionResult = new int[32];
+        int index = 0;
+        int[][] resultBlockS = new int[8][6];
+        for (int[] block : blocks6bits) {
+            resultBlockS[index] = substitutionFunction(block);
+            index++;
+        }
+
+        // Join the 4-bit blocks
+        substitutionResult = joinBlocks(resultBlockS);
+
+        // Permutation choice P to obtain the result of function F
+        substitutionResult = permutation(P, substitutionResult);
+
+        return substitutionResult;
+    }
+
+    public static void main(String[] args) {
+        // Your main method code here
+    }
+
+    public static class TripleInterface {
+
+        public static void main(String[] args) {
+            JFrame frame = new JFrame("Interface with Background Images");
+            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(800, 600);
+            frame.setLayout(new GridLayout(1, 2));
+
+            // Add the background image for the left panel
+            ImageIcon image1 = new ImageIcon("path/to/image1.jpg");
+            JLabel label1 = new JLabel("", image1, JLabel.CENTER);
+            JPanel panel1 = new JPanel(new BorderLayout());
+            panel1.add(label1, BorderLayout.CENTER);
+            JButton button1 = new JButton("Button 1");
+            panel1.add(button1, BorderLayout.SOUTH);
+
+            // Add the background image for the right panel
+            ImageIcon image2 = new ImageIcon("path/to/image2.jpg");
+            JLabel label2 = new JLabel("", image2, JLabel.CENTER);
+            JPanel panel2 = new JPanel(new BorderLayout());
+            panel2.add(label2, BorderLayout.CENTER);
+            JButton button2 = new JButton("Button 2");
+            panel2.add(button2, BorderLayout.SOUTH);
+
+            // Add the panels to the frame
+            frame.add(panel1);
+            frame.add(panel2);
+            frame.setVisible(true);
+        }
+    }

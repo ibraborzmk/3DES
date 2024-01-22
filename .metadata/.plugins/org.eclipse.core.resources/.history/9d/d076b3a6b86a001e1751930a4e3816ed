@@ -1,0 +1,42 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class DESTest {
+    private DES des;
+
+    @BeforeEach
+    public void setUp() {
+        des = new DES();
+    }
+
+
+    @Test
+    public void testCrypteDecrypte() {
+        DES des = new DES();
+
+        // Test des cas simples de chiffrement et déchiffrement
+        String messageOriginal = "Ceci est un message secret";
+        int[] messageCode = des.crypte(messageOriginal);
+        String messageDecrypte = des.decrypte(messageCode);
+
+        assertEquals(messageOriginal, messageDecrypte);
+    }
+ 
+    @Test
+    public void testDecoupage() {
+        int[] bloc = des.stringToBits("Ceci est un message secret");
+        int tailleBlocs = 64;
+        int[][] blocsDecoupes = des.decoupage(bloc, tailleBlocs);
+        int[][] expectedBlocs = {
+            {1, 2, 3, 4},
+            {5, 6, 7, 8}
+        };
+
+        assertArrayEquals(expectedBlocs, blocsDecoupes);
+    }
+   
+    // Ajoutez d'autres tests pour les autres fonctionnalités de votre classe DES
+
+}
+
